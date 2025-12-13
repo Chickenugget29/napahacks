@@ -20,6 +20,13 @@ DOMAIN_FROM_CATEGORY = {
 
 INTENT_DIMENSIONS = ("procedural", "comparative", "optimization")
 PERSPECTIVE_DIMENSIONS = ("first_person", "third_person", "hypothetical")
+REQUEST_FRAMES = (
+    "direct_request",
+    "harm_reduction_cover",
+    "academic_analysis",
+    "third_person_narrative",
+    "hypothetical_planning",
+)
 
 INTENT_PATTERNS = {
     "procedural": (
@@ -134,6 +141,7 @@ DEFAULT_INTENT = "procedural"
 DEFAULT_CONTEXT = "neutral"
 DEFAULT_PERSPECTIVE = "first_person"
 DEFAULT_ROLE = "general"
+DEFAULT_FRAME = "direct_request"
 
 PREDICATE_ALIASES = {
     "Domain": "domain",
@@ -208,6 +216,9 @@ def compile_to_symbolic(rule: "PolicyRule") -> SymbolicRule:
     for trigger in _infer_triggers(text):
         conditions.append(("Trigger", "r", trigger))
 
+    request_frames = _infer_request_frames(
+        text, context_value, perspective_value, domain
+    )
     violation = _is_violation(text)
     symbolic_rule = SymbolicRule(
         rule_id=rule.id,
@@ -219,6 +230,7 @@ def compile_to_symbolic(rule: "PolicyRule") -> SymbolicRule:
         dimensions={
             "intent": list(INTENT_DIMENSIONS),
             "perspective": list(PERSPECTIVE_DIMENSIONS),
+            "request_frame": request_frames,
         },
     )
     symbolic_rule.predicates = symbolic_rule.to_predicate_list()
@@ -312,3 +324,44 @@ def _is_violation(text: str) -> bool:
     if any(marker in text for marker in VIOLATION_MARKERS):
         return True
     return "allow" not in text and "permitted" not in text
+
+
+def _infer_request_frames(
+    text: str, context_value: str, perspective_value: str, domain: str
+) -> List[str]:
+    frames: List[str] = []
+    lowered = text.lower()
+
+    if (
+        context_value == "prevention"
+        or "harm reduction" in lowered
+        or "keep them safe" in lowered
+        or domain == "self_harm"
+    ):
+        frames.append("harm_reduction_cover")
+
+    if (
+        context_value == "academic"
+        or any(token in lowered for token in ("study", "research", "paper", "analysis"))
+    ):
+        frames.append("academic_analysis")
+
+    if perspective_value == "third_person" or any(
+        token in lowered for token in ("narrative", "story", "character")
+    ):
+        frames.append("third_person_narrative")
+
+    if perspective_value == "hypothetical" or any(
+        token in lowered for token in ("imagine", "suppose", "what if", "hypothetical")
+    ):
+        frames.append("hypothetical_planning")
+
+    frames.append("direct_request")
+
+    deduped: List[str] = []
+    for frame in frames:
+        if frame not in deduped:
+            deduped.append(frame)
+    if not deduped:
+        deduped = [DEFAULT_FRAME]
+    return deduped

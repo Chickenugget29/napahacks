@@ -20,7 +20,7 @@ from .prompt_generator import PromptGenerator
 app = FastAPI(
     title="Spec-to-Eval: Formal Policy → Automated Red-Team Generator",
     version="0.1.0",
-    description="Parse policy specs and produce adversarial evaluation prompts.",
+    description="Parse policy specs, produce symbolic adversarial prompts, and compare coverage.",
 )
 
 app.add_middleware(
@@ -92,7 +92,7 @@ PLAYGROUND_HTML = """
     <h1>Spec-to-Eval Playground</h1>
     <p>
       Quick-and-dirty UI for the FastAPI endpoints. Each section hits the live API
-      so you can confirm parsing, prompt generation, evaluation, and the agent-vs-symbolic experiment.
+      so you can confirm parsing, prompt generation, and the agent-vs-symbolic experiment.
     </p>
     <div class="panel">
       <strong>How to test</strong>

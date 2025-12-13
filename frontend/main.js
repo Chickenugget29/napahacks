@@ -78,6 +78,7 @@ const renderPrompts = () => {
           <strong>${prompt.strategy}</strong>
           <p>${prompt.text}</p>
           <small>Targets: ${prompt.target_rule_id}</small>
+          <small>Frame: ${prompt.request_frame}</small>
         </div>
       `
     )

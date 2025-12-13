@@ -34,6 +34,7 @@ class AdversarialPrompt(BaseModel):
     text: str
     target_rule_id: str
     strategy: str
+    request_frame: str
     satisfies: Optional[List[str]] = Field(
         default=None,
         description="Optional list of symbolic predicates the prompt intentionally satisfies.",

@@ -71,3 +71,13 @@ export default defineConfig([
   },
 ])
 ```
+
+## Spec-to-Eval Backend
+
+This repo also ships with a FastAPI backend that parses policy specs, generates symbolic adversarial prompts, and benchmarks coverage.
+
+- `backend/app/main.py` – FastAPI entry point and endpoints.
+- `backend/app/policy_parser.py` – layered parser for natural-language policies.
+- `backend/app/prompt_generator.py` – symbolic prompt templates with semantic `request_frame` metadata (direct request, harm-reduction cover, academic analysis, third-person narrative, hypothetical planning).
+- `backend/app/experiment.py` – compares symbolic prompts against a Claude baseline (requires `ANTHROPIC_API_KEY`).
+- `backend/README.md` – setup/run instructions.
