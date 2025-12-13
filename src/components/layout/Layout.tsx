@@ -7,17 +7,19 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
     return (
-        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 selection:text-primary">
+        <div className="relative min-h-screen bg-background text-foreground font-sans selection:bg-cyan-500/20 selection:text-cyan-400 overflow-hidden">
+            {/* Ambient Background Effects */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                <div className="absolute inset-0 bg-grid-pattern opacity-[0.15]" />
+                <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/10 blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-600/10 blur-[120px] animate-pulse" />
+            </div>
+
             <Header />
-            <main className="pt-20 px-6 pb-12 max-w-[1600px] mx-auto min-h-[calc(100vh-80px)]">
+            
+            <main className="relative z-10 pt-24 px-6 pb-12 w-full max-w-[1800px] mx-auto min-h-[calc(100vh-80px)] flex flex-col">
                 {children}
             </main>
-
-            {/* Background Decor */}
-            <div className="fixed inset-0 pointer-events-none z-[-1]">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[128px]" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px]" />
-            </div>
         </div>
     );
 }
