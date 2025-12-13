@@ -33,11 +33,15 @@
       <div class="actions">
         <button id="parseBtn">Parse Policy</button>
         <button id="promptBtn">Generate Prompts</button>
+        <button id="evaluateBtn">Evaluate</button>
       </div>
 
       <div class="controls">
         <label for="promptCount"># Prompts</label>
         <input id="promptCount" type="number" min="1" max="30" value="10" />
+
+        <label for="targetModel">Target Model (optional)</label>
+        <input id="targetModel" type="text" placeholder="gpt-4o-mini" />
       </div>
     </section>
 
@@ -49,6 +53,11 @@
     <section class="panel">
       <h2>Adversarial Prompts</h2>
       <div id="promptsOutput" class="output"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Evaluation Results</h2>
+      <div id="resultsOutput" class="output"></div>
     </section>
 
     <section class="panel">
