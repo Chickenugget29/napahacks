@@ -24,7 +24,7 @@ Optional: export `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL` / `TARGET
 - `POST /parse-policy` — body: `{ "policy_text": "..." }` → structured rules.
 - `POST /generate-prompts` — same body, optional `?total_prompts=10` query → rules + adversarial prompts.
 - `POST /evaluate` — body: `{ "policy_text": "...", "prompts": [...], "target_model": "claude-3-haiku-20240307" }`. If prompts omitted, they are auto-generated.
-- `POST /run-experiment` — body: `{ "policy_text": "...", "total_prompts": 12 }` → compares Claude agent-only prompts vs symbolic prompts.
+- `POST /run-experiment` — body: `{ "policy_text": "...", "total_prompts": 12 }` → compares Claude agent-only prompts vs symbolic prompts across 5 trials.
 - `GET /playground` — extremely simple HTML surface for poking the pipeline without CLI tools.
 
 ## Quick testing
@@ -62,5 +62,4 @@ Optional: export `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL` / `TARGET
        -H "Content-Type: application/json" \
        -d '{"policy_text": "...", "total_prompts": 12}'
   ```
-
-  The response reports `coverage_percent` (share of rule×dimension combos tested) and `specification_sensitivity` (coverage lost due to constraint collapse).
+  The response highlights randomness-driven (agent) vs spec-driven (symbolic) exploration with `coverage_percent`, `coverage_variance`, `spec_gap`, and `specification_sensitivity`.

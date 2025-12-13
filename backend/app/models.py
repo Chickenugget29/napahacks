@@ -73,6 +73,8 @@ class ExperimentMetrics(BaseModel):
     traceable: bool
     coverage_percent: float
     specification_sensitivity: float
+    coverage_variance: float
+    spec_gap: int
 
 
 class ExperimentResponse(BaseModel):
