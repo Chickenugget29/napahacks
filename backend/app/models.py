@@ -39,6 +39,10 @@ class AdversarialPrompt(BaseModel):
         default=None,
         description="Optional list of symbolic predicates the prompt intentionally satisfies.",
     )
+    annotation: Optional[str] = Field(
+        default=None,
+        description="Human-readable summary of the symbolic logic driving this prompt.",
+    )
 
 
 class PromptGenerationResponse(BaseModel):
@@ -68,16 +72,15 @@ class EvaluationResponse(BaseModel):
 
 
 class ExperimentMetrics(BaseModel):
-    num_prompts: int
+    prompts_generated: int
     rules_covered: int
-    predicate_combinations: int
+    regions_covered: int
     traceable: bool
-    coverage_percent: float
-    specification_sensitivity: float
-    coverage_variance: float
-    spec_gap: int
+    coverage_percent: float  # judge-facing coverage metric
 
 
 class ExperimentResponse(BaseModel):
     agent_only: ExperimentMetrics
     symbolic_guided: ExperimentMetrics
+    comparison_table: str
+    takeaway: str

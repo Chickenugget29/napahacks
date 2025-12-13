@@ -318,7 +318,4 @@ def run_experiment_endpoint(
     request: PolicyParseRequest, total_prompts: int = 12
 ) -> ExperimentResponse:
     """Compare agent-only red-teaming vs. symbolic prompts for the same policy."""
-    agent_metrics, symbolic_metrics = experiment_runner.run(
-        request.policy_text, total_prompts=total_prompts
-    )
-    return ExperimentResponse(agent_only=agent_metrics, symbolic_guided=symbolic_metrics)
+    return experiment_runner.run(request.policy_text, total_prompts=total_prompts)

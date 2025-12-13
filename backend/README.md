@@ -53,4 +53,4 @@ Optional: export `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) to enabl
        -H "Content-Type: application/json" \
        -d '{"policy_text": "...", "total_prompts": 12}'
   ```
-  The response highlights randomness-driven (agent) vs spec-driven (symbolic) exploration with `coverage_percent`, `coverage_variance`, `spec_gap`, and `specification_sensitivity`.
+  The response highlights randomness-driven (agent) vs spec-driven (symbolic) exploration with only four demo-friendly metrics: prompts generated, rules covered, regions covered, and traceability, plus an ASCII comparison table.
