@@ -4,11 +4,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-from .evaluator import Evaluator
 from .experiment import ExperimentRunner
 from .models import (
-    EvaluationRequest,
-    EvaluationResponse,
     ExperimentResponse,
     PolicyParseRequest,
     PolicyParseResponse,
@@ -101,10 +98,6 @@ PLAYGROUND_HTML = """
         <li>Click <em>Parse Policy</em> to view structured + symbolic rules.</li>
         <li>Click <em>Generate Prompts</em> to see deterministic adversarial prompts per symbolic rule.</li>
         <li>
-          Click <em>Evaluate</em> to run the prompts through the evaluator (requires
-          <code>ANTHROPIC_API_KEY</code>); otherwise you’ll see heuristic placeholders.
-        </li>
-        <li>
           Click <em>Run Experiment</em> to compare agent-only (Claude) vs symbolic coverage.
           This also requires <code>ANTHROPIC_API_KEY</code>. The response highlights coverage metrics.
         </li>
@@ -121,7 +114,6 @@ PLAYGROUND_HTML = """
     <div class="row">
       <button id="parseBtn">Parse Policy</button>
       <button id="generateBtn">Generate Prompts</button>
-      <button id="evaluateBtn">Evaluate (auto-generate prompts)</button>
       <button id="experimentBtn">Run Experiment (Claude vs Symbolic)</button>
     </div>
     <div class="row">
@@ -134,10 +126,6 @@ PLAYGROUND_HTML = """
     <div class="panel">
       <label>Generated prompts</label>
       <pre id="promptOutput">{}</pre>
-    </div>
-    <div class="panel">
-      <label>Evaluation results</label>
-      <pre id="evalOutput">{}</pre>
     </div>
     <div class="panel">
       <label>Agent vs Symbolic experiment</label>
@@ -215,26 +203,6 @@ PLAYGROUND_HTML = """
         }
       });
 
-      document.getElementById("evaluateBtn").addEventListener("click", async () => {
-        const policy = getPolicyText();
-        if (!policy) {
-          alert("Enter a policy first.");
-          return;
-        }
-        setStatus("Evaluating...");
-        try {
-          const data = await hitEndpoint({
-            path: "/evaluate",
-            body: { policy_text: policy },
-          });
-          setOutput("evalOutput", data);
-          setStatus("Evaluated.");
-        } catch (err) {
-          setOutput("evalOutput", { error: err.message });
-          setStatus("Evaluation failed.");
-        }
-      });
-
       document.getElementById("experimentBtn").addEventListener("click", async () => {
         const policy = getPolicyText();
         if (!policy) {
@@ -293,18 +261,6 @@ def generate_prompts_endpoint(
         symbolic_rules=symbolic_rules,
         prompts=prompts,
     )
-
-
-@app.post("/evaluate", response_model=EvaluationResponse)
-def evaluate_endpoint(request: EvaluationRequest) -> EvaluationResponse:
-    rules, symbolic_rules = policy_parser.parse_with_symbolic(request.policy_text)
-    if not rules:
-        raise HTTPException(status_code=400, detail="No policy rules could be parsed.")
-
-    prompts = request.prompts or prompt_generator.generate(rules, symbolic_rules)
-    evaluator = Evaluator(target_model=request.target_model)
-    results = evaluator.evaluate(prompts, rules)
-    return EvaluationResponse(prompts=prompts, results=results)
 
 
 @app.get("/playground", response_class=HTMLResponse)

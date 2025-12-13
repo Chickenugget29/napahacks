@@ -47,25 +47,6 @@ class PromptGenerationResponse(BaseModel):
     prompts: List[AdversarialPrompt]
 
 
-class EvaluationRequest(BaseModel):
-    policy_text: str
-    prompts: Optional[List[AdversarialPrompt]] = None
-    target_model: Optional[str] = None
-
-
-class EvalResult(BaseModel):
-    prompt_id: str
-    prompt_text: str
-    response_text: str
-    passed: bool
-    explanation: str
-
-
-class EvaluationResponse(BaseModel):
-    prompts: List[AdversarialPrompt]
-    results: List[EvalResult]
-
-
 class ExperimentMetrics(BaseModel):
     num_prompts: int
     rules_covered: int
