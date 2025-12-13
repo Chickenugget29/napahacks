@@ -5,9 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from .evaluator import Evaluator
+from .experiment import ExperimentRunner
 from .models import (
     EvaluationRequest,
     EvaluationResponse,
+    ExperimentResponse,
     PolicyParseRequest,
     PolicyParseResponse,
     PromptGenerationResponse,
@@ -31,6 +33,7 @@ app.add_middleware(
 
 policy_parser = PolicyParser()
 prompt_generator = PromptGenerator()
+experiment_runner = ExperimentRunner(policy_parser, prompt_generator)
 
 PLAYGROUND_HTML = """
 <!DOCTYPE html>
@@ -53,7 +56,7 @@ PLAYGROUND_HTML = """
         border: 1px solid #444;
         padding: 0.5rem;
       }
-      button {
+      button, select {
         margin-right: 0.5rem;
         margin-top: 0.5rem;
         padding: 0.4rem 0.8rem;
@@ -75,28 +78,70 @@ PLAYGROUND_HTML = """
         width: 80px;
       }
     </style>
-  </head>
+      .panel {
+        border: 1px solid #333;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+        background: #141414;
+      }
+      ol li {
+        margin-bottom: 0.35rem;
+      }
+    </style>
   <body>
     <h1>Spec-to-Eval Playground</h1>
+    <p>
+      Quick-and-dirty UI for the FastAPI endpoints. Each section hits the live API
+      so you can confirm parsing, prompt generation, evaluation, and the agent-vs-symbolic experiment.
+    </p>
+    <div class="panel">
+      <strong>How to test</strong>
+      <ol>
+        <li>Paste any safety policy snippet in the text box.</li>
+        <li>Click <em>Parse Policy</em> to view structured + symbolic rules.</li>
+        <li>Click <em>Generate Prompts</em> to see deterministic adversarial prompts per symbolic rule.</li>
+        <li>
+          Click <em>Evaluate</em> to run the prompts through the evaluator (requires
+          <code>ANTHROPIC_API_KEY</code>); otherwise you’ll see heuristic placeholders.
+        </li>
+        <li>
+          Click <em>Run Experiment</em> to compare agent-only (Claude) vs symbolic coverage.
+          This also requires <code>ANTHROPIC_API_KEY</code>. The response highlights coverage metrics.
+        </li>
+      </ol>
+    </div>
     <div class="row">
       <label for="policyText">Policy text</label>
       <textarea id="policyText" placeholder="Paste your policy clauses here..."></textarea>
     </div>
     <div class="row">
-      <label for="promptCount">Prompt count</label>
-      <input type="number" id="promptCount" value="6" min="1" max="48" />
+      <label for="promptCount">Prompt / experiment count</label>
+      <input type="number" id="promptCount" value="10" min="1" max="60" />
     </div>
     <div class="row">
       <button id="parseBtn">Parse Policy</button>
       <button id="generateBtn">Generate Prompts</button>
       <button id="evaluateBtn">Evaluate (auto-generate prompts)</button>
+      <button id="experimentBtn">Run Experiment (Claude vs Symbolic)</button>
     </div>
     <div class="row">
       <strong>Status:</strong> <span id="status">Idle</span>
     </div>
-    <div class="row">
-      <label>Output</label>
-      <pre id="output">{}</pre>
+    <div class="panel">
+      <label>Parsed rules + symbolic constraints</label>
+      <pre id="parseOutput">{}</pre>
+    </div>
+    <div class="panel">
+      <label>Generated prompts</label>
+      <pre id="promptOutput">{}</pre>
+    </div>
+    <div class="panel">
+      <label>Evaluation results</label>
+      <pre id="evalOutput">{}</pre>
+    </div>
+    <div class="panel">
+      <label>Agent vs Symbolic experiment</label>
+      <pre id="experimentOutput">{}</pre>
     </div>
     <script>
       async function hitEndpoint({ path, body, query = "" }) {
@@ -120,8 +165,8 @@ PLAYGROUND_HTML = """
         document.getElementById("status").innerText = text;
       }
 
-      function setOutput(data) {
-        document.getElementById("output").innerText = JSON.stringify(
+      function setOutput(sectionId, data) {
+        document.getElementById(sectionId).innerText = JSON.stringify(
           data,
           null,
           2
@@ -140,10 +185,10 @@ PLAYGROUND_HTML = """
             path: "/parse-policy",
             body: { policy_text: policy },
           });
-          setOutput(data);
+          setOutput("parseOutput", data);
           setStatus("Parsed.");
         } catch (err) {
-          setOutput({ error: err.message });
+          setOutput("parseOutput", { error: err.message });
           setStatus("Parse failed.");
         }
       });
@@ -162,10 +207,10 @@ PLAYGROUND_HTML = """
             body: { policy_text: policy },
             query: `?total_prompts=${count}`,
           });
-          setOutput(data);
+          setOutput("promptOutput", data);
           setStatus("Generated.");
         } catch (err) {
-          setOutput({ error: err.message });
+          setOutput("promptOutput", { error: err.message });
           setStatus("Generation failed.");
         }
       });
@@ -182,11 +227,33 @@ PLAYGROUND_HTML = """
             path: "/evaluate",
             body: { policy_text: policy },
           });
-          setOutput(data);
+          setOutput("evalOutput", data);
           setStatus("Evaluated.");
         } catch (err) {
-          setOutput({ error: err.message });
+          setOutput("evalOutput", { error: err.message });
           setStatus("Evaluation failed.");
+        }
+      });
+
+      document.getElementById("experimentBtn").addEventListener("click", async () => {
+        const policy = getPolicyText();
+        if (!policy) {
+          alert("Enter a policy first.");
+          return;
+        }
+        const count = Number(document.getElementById("promptCount").value || "10");
+        setStatus("Running experiment...");
+        try {
+          const data = await hitEndpoint({
+            path: "/run-experiment",
+            body: { policy_text: policy },
+            query: `?total_prompts=${count}`,
+          });
+          setOutput("experimentOutput", data);
+          setStatus("Experiment complete.");
+        } catch (err) {
+          setOutput("experimentOutput", { error: err.message });
+          setStatus("Experiment failed.");
         }
       });
     </script>
@@ -244,3 +311,14 @@ def evaluate_endpoint(request: EvaluationRequest) -> EvaluationResponse:
 def playground() -> HTMLResponse:
     """Minimal UI so humans can poke the pipeline without curl."""
     return HTMLResponse(content=PLAYGROUND_HTML)
+
+
+@app.post("/run-experiment", response_model=ExperimentResponse)
+def run_experiment_endpoint(
+    request: PolicyParseRequest, total_prompts: int = 12
+) -> ExperimentResponse:
+    """Compare agent-only red-teaming vs. symbolic prompts for the same policy."""
+    agent_metrics, symbolic_metrics = experiment_runner.run(
+        request.policy_text, total_prompts=total_prompts
+    )
+    return ExperimentResponse(agent_only=agent_metrics, symbolic_guided=symbolic_metrics)

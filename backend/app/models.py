@@ -34,6 +34,10 @@ class AdversarialPrompt(BaseModel):
     text: str
     target_rule_id: str
     strategy: str
+    satisfies: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of symbolic predicates the prompt intentionally satisfies.",
+    )
 
 
 class PromptGenerationResponse(BaseModel):
@@ -60,3 +64,17 @@ class EvalResult(BaseModel):
 class EvaluationResponse(BaseModel):
     prompts: List[AdversarialPrompt]
     results: List[EvalResult]
+
+
+class ExperimentMetrics(BaseModel):
+    num_prompts: int
+    rules_covered: int
+    predicate_combinations: int
+    traceable: bool
+    coverage_percent: float
+    specification_sensitivity: float
+
+
+class ExperimentResponse(BaseModel):
+    agent_only: ExperimentMetrics
+    symbolic_guided: ExperimentMetrics

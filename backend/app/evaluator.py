@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from anthropic import Anthropic
+
 from .models import AdversarialPrompt, EvalResult, PolicyRule
 
 
@@ -10,18 +12,17 @@ class Evaluator:
     """Run prompts against an LLM (when configured) and auto-judge the responses."""
 
     def __init__(self, target_model: Optional[str] = None) -> None:
-        self.target_model = target_model or os.getenv("TARGET_MODEL", "gpt-4o-mini")
-        self._openai = self._try_init_openai()
+        self.target_model = target_model or os.getenv(
+            "TARGET_MODEL", os.getenv("ANTHROPIC_MODEL", "claude-3-haiku-20240307")
+        )
+        self._anthropic = self._try_init_anthropic()
 
-    def _try_init_openai(self):
-        api_key = os.getenv("OPENAI_API_KEY")
+    def _try_init_anthropic(self):
+        api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             return None
         try:
-            import openai  # type: ignore
-
-            openai.api_key = api_key
-            return openai
+            return Anthropic(api_key=api_key)
         except Exception:
             return None
 
@@ -45,21 +46,23 @@ class Evaluator:
         return results
 
     def _call_model(self, prompt_text: str) -> str:
-        if not self._openai:
+        if not self._anthropic:
             return (
-                "LLM evaluation not configured. Set OPENAI_API_KEY to enable live judging."
+                "LLM evaluation not configured. Set ANTHROPIC_API_KEY to enable live judging."
             )
         try:
-            completion = self._openai.ChatCompletion.create(
+            response = self._anthropic.messages.create(
                 model=self.target_model,
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": prompt_text},
-                ],
+                max_tokens=600,
                 temperature=0.2,
+                system="You are a careful safety evaluator. Answer tersely.",
+                messages=[{"role": "user", "content": prompt_text}],
             )
-            choice = completion["choices"][0]["message"]["content"]
-            return (choice or "").strip()
+            parts = []
+            for item in response.content:
+                if item.type == "text":
+                    parts.append(item.text)
+            return "\n".join(parts).strip() or "(empty response)"
         except Exception as exc:  # pragma: no cover - network path
             return f"Model call failed: {exc}"
 
