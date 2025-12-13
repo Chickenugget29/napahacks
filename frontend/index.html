@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spec-to-Eval Frontend</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Spec-to-Eval</h1>
+      <p>Formal Policy → Automated Red-Team Generator</p>
+    </header>
+
+    <section class="panel">
+      <label for="backendUrl">Backend URL</label>
+      <input
+        id="backendUrl"
+        type="text"
+        value="http://127.0.0.1:8000"
+        placeholder="http://localhost:8000"
+      />
+    </section>
+
+    <section class="panel">
+      <label for="policyText">Policy Text</label>
+      <textarea
+        id="policyText"
+        rows="8"
+        placeholder="Paste a short policy spec here..."
+      ></textarea>
+
+      <div class="actions">
+        <button id="parseBtn">Parse Policy</button>
+        <button id="promptBtn">Generate Prompts</button>
+        <button id="evaluateBtn">Evaluate</button>
+      </div>
+
+      <div class="controls">
+        <label for="promptCount"># Prompts</label>
+        <input id="promptCount" type="number" min="1" max="30" value="10" />
+
+        <label for="targetModel">Target Model (optional)</label>
+        <input id="targetModel" type="text" placeholder="gpt-4o-mini" />
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Rules</h2>
+      <div id="rulesOutput" class="output"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Adversarial Prompts</h2>
+      <div id="promptsOutput" class="output"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Evaluation Results</h2>
+      <div id="resultsOutput" class="output"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Status</h2>
+      <pre id="statusLog"></pre>
+    </section>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
