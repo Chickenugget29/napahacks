@@ -5,6 +5,7 @@ import uuid
 from typing import List
 
 from .models import PolicyRule
+from .symbolic import SymbolicRule, compile_to_symbolic
 
 
 STOPWORDS = {
@@ -60,6 +61,16 @@ class PolicyParser:
     """Convert natural language policies into structured rule objects."""
 
     def parse(self, policy_text: str) -> List[PolicyRule]:
+        return self._build_policy_rules(policy_text)
+
+    def parse_with_symbolic(
+        self, policy_text: str
+    ) -> tuple[List[PolicyRule], List[SymbolicRule]]:
+        rules = self._build_policy_rules(policy_text)
+        symbolic_rules = [compile_to_symbolic(rule) for rule in rules]
+        return rules, symbolic_rules
+
+    def _build_policy_rules(self, policy_text: str) -> List[PolicyRule]:
         raw_rules = self._extract_candidate_rules(policy_text)
         rules: List[PolicyRule] = []
         for idx, sentence in enumerate(raw_rules):

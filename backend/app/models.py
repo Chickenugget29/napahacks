@@ -4,6 +4,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+from .symbolic import SymbolicRule
+
 
 class PolicyRule(BaseModel):
     """Structured representation of a single policy rule."""
@@ -24,6 +26,7 @@ class PolicyParseRequest(BaseModel):
 class PolicyParseResponse(BaseModel):
     policy_text: str
     rules: List[PolicyRule]
+    symbolic_rules: List[SymbolicRule]
 
 
 class AdversarialPrompt(BaseModel):
@@ -36,6 +39,7 @@ class AdversarialPrompt(BaseModel):
 class PromptGenerationResponse(BaseModel):
     policy_text: str
     rules: List[PolicyRule]
+    symbolic_rules: List[SymbolicRule]
     prompts: List[AdversarialPrompt]
 
 
