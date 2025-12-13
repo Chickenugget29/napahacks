@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from .evaluator import Evaluator
 from .models import (
@@ -17,6 +18,14 @@ app = FastAPI(
     title="Spec-to-Eval: Formal Policy → Automated Red-Team Generator",
     version="0.1.0",
     description="Parse policy specs and produce adversarial evaluation prompts.",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 policy_parser = PolicyParser()
