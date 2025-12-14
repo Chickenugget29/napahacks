@@ -46,7 +46,7 @@
     @apply border-white/10;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-cyan-500/30 selection:text-cyan-200 overflow-hidden;
+    @apply bg-background text-foreground antialiased selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";
   }
 }

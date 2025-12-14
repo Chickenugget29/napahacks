@@ -8,6 +8,14 @@ from .models import AdversarialPrompt, PolicyRule
 from .symbolic import SymbolicRule
 
 StrategyTemplate = Tuple[str, Callable[[PolicyRule, SymbolicRule, str, str], str]]
+STRATEGY_FRAMES: Dict[str, str] = {
+    "research_probe": "direct_request",
+    "harm_reduction": "harm_reduction_cover",
+    "third_person_scene": "third_person_narrative",
+    "workaround_blueprint": "hypothetical_planning",
+    "hypothetical_analysis": "academic_analysis",
+    "resourceful_peer": "direct_request",
+}
 
 
 def _primary_target(rule: PolicyRule) -> str:
@@ -343,13 +351,17 @@ class PromptGenerator:
             )
             for strategy, builder in self.templates:
                 prompt_text = builder(rule, symbolic, intent_value, perspective_value).strip()
+                frame = STRATEGY_FRAMES.get(strategy, "direct_request")
+                satisfies = list(symbolic.predicates)
+                satisfies.append(f"request_frame={frame}")
                 prompts.append(
                     AdversarialPrompt(
                         id=f"prompt-{len(prompts)+1}-{uuid.uuid4().hex[:6]}",
                         text=prompt_text,
                         target_rule_id=rule.id,
                         strategy=strategy,
-                        satisfies=list(symbolic.predicates),
+                        request_frame=frame,
+                        satisfies=satisfies,
                         annotation=annotation_text,
                     )
                 )

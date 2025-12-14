@@ -53,4 +53,16 @@ Optional: export `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) to enabl
        -H "Content-Type: application/json" \
        -d '{"policy_text": "...", "total_prompts": 12}'
   ```
-  The response highlights randomness-driven (agent) vs spec-driven (symbolic) exploration with only four demo-friendly metrics: prompts generated, rules covered, regions covered, and traceability, plus an ASCII comparison table.
+  The response highlights randomness-driven (agent) vs spec-driven (symbolic) exploration with `coverage_percent`, `coverage_variance`, `spec_gap`, and `specification_sensitivity`.
+
+## Frontend integration
+
+The React UI in the repo root talks to this API. From the project root:
+
+```bash
+npm install
+echo "VITE_BACKEND_URL=http://127.0.0.1:8000" > .env.local  # optional
+npm run dev
+```
+
+Keep `uvicorn` running while you interact with the UI at `http://localhost:5173`. The React status indicators mirror `POST /parse-policy`, `POST /generate-prompts`, and `POST /run-experiment`.

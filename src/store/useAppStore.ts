@@ -1,59 +1,185 @@
 import { create } from 'zustand';
 
-type AnalysisStatus = 'idle' | 'extracting' | 'verifying' | 'complete' | 'error';
+type AnalysisStatus = 'idle' | 'parsing' | 'generating' | 'experimenting' | 'complete' | 'error';
 
-interface Claim {
+export interface PolicyRule {
     id: string;
     text: string;
-    predicate: string;
+    category: string;
+    keywords: string[];
 }
 
-interface LogicStep {
+export interface SymbolicRulePayload {
+    rule_id: string;
+    predicates: string[];
+    violation: boolean;
+    dimensions?: Record<string, string[]>;
+}
+
+export interface PromptPayload {
     id: string;
-    description: string;
-    status: 'valid' | 'contradiction' | 'pending';
-    relatedClaimIds: string[];
+    text: string;
+    target_rule_id: string;
+    strategy: string;
+    request_frame: string;
+    satisfies?: string[];
+}
+
+export interface ExperimentMetrics {
+    num_prompts: number;
+    rules_covered: number;
+    predicate_combinations: number;
+    traceable: boolean;
+    coverage_percent: number;
+    specification_sensitivity: number;
+    coverage_variance: number;
+    spec_gap: number;
+}
+
+export interface ExperimentResponse {
+    agent_only: ExperimentMetrics;
+    symbolic_guided: ExperimentMetrics;
 }
 
 interface AppState {
-    inputText: string;
-    setInputText: (text: string) => void;
+    policyText: string;
+    setPolicyText: (text: string) => void;
 
     status: AnalysisStatus;
-    setStatus: (status: AnalysisStatus) => void;
+    error: string | null;
 
-    extractedClaims: Claim[];
-    setClaims: (claims: Claim[]) => void;
+    rules: PolicyRule[];
+    symbolicRules: SymbolicRulePayload[];
+    prompts: PromptPayload[];
+    experiment: ExperimentResponse | null;
 
-    logicSteps: LogicStep[];
-    setLogicSteps: (steps: LogicStep[]) => void;
-
-    verificationResult: 'consistent' | 'contradiction' | null;
-    setVerificationResult: (result: 'consistent' | 'contradiction' | null) => void;
-
+    parsePolicy: () => Promise<void>;
+    generatePrompts: (totalPrompts?: number) => Promise<void>;
+    runExperiment: (totalPrompts?: number) => Promise<void>;
     reset: () => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-    inputText: '',
-    setInputText: (text) => set({ inputText: text }),
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
+const DEFAULT_PROMPT_COUNT = 10;
+
+async function postJSON<T>(path: string, body: unknown, query = ''): Promise<T> {
+    const response = await fetch(`${BACKEND_URL}${path}${query}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || response.statusText);
+    }
+    return response.json() as Promise<T>;
+}
+
+export const useAppStore = create<AppState>((set, get) => ({
+    policyText: '',
+    setPolicyText: (text) => set({ policyText: text }),
 
     status: 'idle',
-    setStatus: (status) => set({ status }),
+    error: null,
 
-    extractedClaims: [],
-    setClaims: (claims) => set({ extractedClaims: claims }),
+    rules: [],
+    symbolicRules: [],
+    prompts: [],
+    experiment: null,
 
-    logicSteps: [],
-    setLogicSteps: (steps) => set({ logicSteps: steps }),
+    async parsePolicy() {
+        const policyText = get().policyText.trim();
+        if (!policyText) {
+            set({ error: 'Please paste a policy before parsing.' });
+            return;
+        }
+        set({ status: 'parsing', error: null });
+        try {
+            const data = await postJSON<{ rules: PolicyRule[]; symbolic_rules: SymbolicRulePayload[] }>(
+                '/parse-policy',
+                { policy_text: policyText }
+            );
+            set({
+                rules: data.rules,
+                symbolicRules: data.symbolic_rules,
+                prompts: [],
+                experiment: null,
+                status: 'complete',
+            });
+        } catch (error) {
+            set({ status: 'error', error: (error as Error).message });
+            throw error;
+        }
+    },
 
-    verificationResult: null,
-    setVerificationResult: (result) => set({ verificationResult: result }),
+    async generatePrompts(totalPrompts?: number) {
+        const policyText = get().policyText.trim();
+        if (!policyText) {
+            set({ error: 'Please paste a policy before generating prompts.' });
+            return;
+        }
+        if (!get().rules.length) {
+            await get().parsePolicy();
+            if (!get().rules.length) return;
+        }
+        set({ status: 'generating', error: null });
+        const promptTarget = totalPrompts ?? DEFAULT_PROMPT_COUNT;
+        try {
+            const data = await postJSON<{
+                rules: PolicyRule[];
+                symbolic_rules: SymbolicRulePayload[];
+                prompts: PromptPayload[];
+            }>(
+                '/generate-prompts',
+                { policy_text: policyText },
+                `?total_prompts=${promptTarget}`
+            );
+            set({
+                rules: data.rules,
+                symbolicRules: data.symbolic_rules,
+                prompts: data.prompts,
+                status: 'complete',
+            });
+        } catch (error) {
+            set({ status: 'error', error: (error as Error).message });
+            throw error;
+        }
+    },
+
+    async runExperiment(totalPrompts?: number) {
+        const policyText = get().policyText.trim();
+        if (!policyText) {
+            set({ error: 'Please paste a policy before running the experiment.' });
+            return;
+        }
+        if (!get().rules.length) {
+            await get().parsePolicy();
+            if (!get().rules.length) return;
+        }
+        set({ status: 'experimenting', error: null });
+        const promptTarget = totalPrompts ?? DEFAULT_PROMPT_COUNT;
+        try {
+            const data = await postJSON<ExperimentResponse>(
+                '/run-experiment',
+                { policy_text: policyText },
+                `?total_prompts=${promptTarget}`
+            );
+            set({
+                experiment: data,
+                status: 'complete',
+            });
+        } catch (error) {
+            set({ status: 'error', error: (error as Error).message });
+            throw error;
+        }
+    },
 
     reset: () => set({
         status: 'idle',
-        extractedClaims: [],
-        logicSteps: [],
-        verificationResult: null
+        error: null,
+        rules: [],
+        symbolicRules: [],
+        prompts: [],
+        experiment: null,
     }),
 }));

@@ -1,96 +1,203 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useAppStore } from '../../store/useAppStore';
-import { GitGraph, AlertTriangle, CheckCircle2, ArrowDown } from 'lucide-react';
+import { GitGraph, Loader2, Sparkles, FlaskConical, Target } from 'lucide-react';
+import { useAppStore, type ExperimentMetrics } from '../../store/useAppStore';
 import { cn } from '../../lib/utils';
+import {
+    REQUEST_FRAME_DETAILS,
+    REQUEST_FRAME_ORDER,
+    getFrameInfo,
+} from '../../constants/requestFrames';
+
+type NumericMetricKey =
+    | 'num_prompts'
+    | 'rules_covered'
+    | 'predicate_combinations'
+    | 'coverage_percent'
+    | 'specification_sensitivity'
+    | 'spec_gap';
+
+const METRIC_FIELDS: Array<{ key: NumericMetricKey; label: string; suffix?: string; precision?: number }> = [
+    { key: 'num_prompts', label: 'Prompts' },
+    { key: 'rules_covered', label: 'Rules Hit' },
+    { key: 'predicate_combinations', label: 'Predicate Regions' },
+    { key: 'coverage_percent', label: 'Coverage', suffix: '%', precision: 1 },
+    { key: 'spec_gap', label: 'Spec Gap' },
+    { key: 'specification_sensitivity', label: 'Sensitivity', suffix: '%', precision: 1 },
+];
 
 export function LogicFlow() {
-    const { logicSteps, status } = useAppStore();
+    const { prompts, experiment, status } = useAppStore();
 
-    if (status === 'idle' || status === 'extracting') return null;
+    const groupedPrompts = useMemo(() => {
+        const map = new Map<string, typeof prompts>();
+        for (const prompt of prompts) {
+            const list = map.get(prompt.request_frame) ?? [];
+            list.push(prompt);
+            map.set(prompt.request_frame, list);
+        }
+        return map;
+    }, [prompts]);
+
+    const orderedFrames = useMemo(() => {
+        const known = REQUEST_FRAME_ORDER.filter((frame) => groupedPrompts.has(frame));
+        const unknown = Array.from(groupedPrompts.keys()).filter(
+            (frame) => !REQUEST_FRAME_ORDER.includes(frame as typeof REQUEST_FRAME_ORDER[number])
+        );
+        return [...known, ...unknown];
+    }, [groupedPrompts]);
+
+    const hasPrompts = prompts.length > 0;
+    const isGenerating = status === 'generating';
+    const isExperimenting = status === 'experimenting';
 
     return (
-        <div className="flex flex-col gap-4 mt-8 pt-8 border-t border-white/5 relative">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 bg-background/50 backdrop-blur-md">
-                <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-            </div>
+        <div className="flex flex-col gap-8 pt-6 border-t border-white/5">
+            <section>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-2">
+                        <GitGraph className="w-4 h-4" />
+                        Symbolic Prompt Compiler
+                    </h3>
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                        {status.toUpperCase()}
+                    </span>
+                </div>
 
-            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-2 mb-2">
-                <GitGraph className="w-4 h-4" />
-                Logic Verification Chain
-            </h3>
-
-            <div className="space-y-0 relative pl-4">
-                {/* Connecting Line */}
-                <div className="absolute left-[27px] top-6 bottom-6 w-px bg-gradient-to-b from-cyan-500/20 via-cyan-500/10 to-transparent" />
-
-                {logicSteps.map((step, index) => (
-                    <div key={step.id} className="relative pt-6 first:pt-0">
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.4 }}
-                            className={cn(
-                                "relative p-4 rounded-xl border ml-6 group transition-all duration-300",
-                                step.status === 'contradiction'
-                                    ? "bg-red-500/5 border-red-500/20 hover:border-red-500/40"
-                                    : "bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40"
-                            )}
-                        >
-                            {/* Node Point */}
-                            <div className={cn(
-                                "absolute left-[-31px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 bg-background z-10 flex items-center justify-center transition-colors duration-500",
-                                step.status === 'contradiction' ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
-                            )}>
-                                <div className={cn("w-1.5 h-1.5 rounded-full", step.status === 'contradiction' ? "bg-red-500" : "bg-emerald-500")} />
+                {!hasPrompts && (
+                    <div className="rounded-xl border border-dashed border-white/10 bg-black/40 p-6 text-center text-sm font-mono text-muted-foreground/90">
+                        {isGenerating ? (
+                            <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+                                Synthesizing prompts for each symbolic frame...
                             </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-3">
+                                <Sparkles className="h-6 w-6 text-white/30" />
+                                Run <span className="text-white">Generate Prompts</span> or <span className="text-white">Run Experiment</span> to populate this section.
+                            </div>
+                        )}
+                    </div>
+                )}
 
-                            {/* Arrow connector */}
-                            {index < logicSteps.length - 1 && (
-                                <div className="absolute left-[-23px] top-full h-6 w-px border-l border-dashed border-white/20" />
-                            )}
+                <div className="space-y-6">
+                    {orderedFrames.map((frame) => {
+                        const promptsForFrame = groupedPrompts.get(frame) ?? [];
+                        const info = getFrameInfo(frame);
+                        const frameDetails = REQUEST_FRAME_DETAILS[frame] ?? info;
 
-                            <div className="flex items-start gap-4">
-                                <div className={cn(
-                                    "mt-1 p-2 rounded-lg",
-                                    step.status === 'contradiction' ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-500"
-                                )}>
-                                    {step.status === 'contradiction' ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-white/90 leading-relaxed font-mono">
-                                        {step.description}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <p className={cn(
-                                            "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border",
-                                            step.status === 'contradiction'
-                                                ? "text-red-400 bg-red-500/10 border-red-500/20"
-                                                : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                                        )}>
-                                            {step.status}
+                        return (
+                            <motion.div
+                                key={frame}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className={cn(
+                                    "rounded-2xl border p-5 bg-black/40",
+                                    `bg-gradient-to-br ${frameDetails.accent}`
+                                )}
+                            >
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <p className="text-[11px] font-mono uppercase tracking-widest text-white/80">
+                                            {info.label}
                                         </p>
-                                        <span className="text-[10px] text-muted-foreground font-mono">
-                                            // Process ID: {step.id}
+                                        <p className="text-xs text-white/70">{info.description}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={cn(
+                                            "rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-widest",
+                                            frameDetails.badge
+                                        )}>
+                                            {promptsForFrame.length} prompts
                                         </span>
                                     </div>
                                 </div>
-                            </div>
-                        </motion.div>
 
-                        {/* Flow Arrow */}
-                        {index < logicSteps.length - 1 && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: index * 0.4 + 0.2 }}
-                                className="absolute left-[20px] -bottom-3 text-white/10"
-                            >
-                                <ArrowDown className="w-3 h-3" />
+                                <div className="mt-4 space-y-3">
+                                    {promptsForFrame.map((prompt) => (
+                                        <div key={prompt.id} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                                            <p className="text-sm text-white/90 leading-relaxed">{prompt.text}</p>
+                                            <div className="mt-3 flex flex-wrap gap-3 text-[11px] font-mono text-muted-foreground/90">
+                                                <span className="rounded bg-white/5 px-2 py-0.5">target: {prompt.target_rule_id}</span>
+                                                <span className="rounded bg-white/5 px-2 py-0.5">{prompt.strategy}</span>
+                                            </div>
+                                            {prompt.satisfies?.length ? (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {prompt.satisfies.map((predicate) => (
+                                                        <span key={`${prompt.id}-${predicate}`} className="rounded border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-mono text-white/80">
+                                                            {predicate}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    ))}
+                                </div>
                             </motion.div>
+                        );
+                    })}
+                </div>
+            </section>
+
+            {experiment && (
+                <section className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                            <FlaskConical className="w-4 h-4" />
+                            Experiment Metrics
+                        </h3>
+                        {isExperimenting && (
+                            <span className="flex items-center gap-2 text-[11px] font-mono text-emerald-200/80">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Comparing coverage...
+                            </span>
                         )}
                     </div>
-                ))}
-            </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {([
+                            { key: 'symbolic_guided', title: 'Symbolic Guidance', accent: 'from-emerald-500/20 to-emerald-500/0', caption: 'Request-frame constrained prompts' },
+                            { key: 'agent_only', title: 'Agent Baseline', accent: 'from-orange-500/20 to-orange-500/0', caption: 'Claude-generated prompts' },
+                        ] as const).map(({ key, title, accent, caption }) => {
+                            const metrics: ExperimentMetrics = experiment[key];
+                            return (
+                                <div key={key} className={cn("rounded-2xl border border-white/10 bg-black/40 p-5 bg-gradient-to-br", accent)}>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-[11px] font-mono uppercase tracking-widest text-white/80">{title}</p>
+                                            <p className="text-xs text-white/60">{caption}</p>
+                                        </div>
+                                        <Target className="h-4 w-4 text-white/50" />
+                                    </div>
+
+                                    <div className="mt-4 grid grid-cols-2 gap-3">
+                                        {METRIC_FIELDS.map(({ key: fieldKey, label, suffix, precision }) => {
+                                            const value = metrics[fieldKey];
+                                            const formatted =
+                                                typeof value === 'number'
+                                                    ? `${value.toFixed(precision ?? 0).replace(/\.0+$/, '')}${suffix ?? ''}`
+                                                    : value
+                                                        ? 'Yes'
+                                                        : 'No';
+                                            return (
+                                                <div key={`${title}-${label}`} className="rounded-lg border border-white/5 bg-white/5 p-3">
+                                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</p>
+                                                    <p className="text-lg font-semibold text-white/90 mt-1">{formatted}</p>
+                                                </div>
+                                            );
+                                        })}
+                                        <div className="rounded-lg border border-white/5 bg-white/5 p-3">
+                                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Traceable</p>
+                                            <p className="text-lg font-semibold text-white/90 mt-1">{metrics.traceable ? 'Yes' : 'No'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }

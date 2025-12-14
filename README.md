@@ -1,83 +1,55 @@
-# React + TypeScript + Vite
+# Spec-to-Eval: Formal Policy → Automated Red-Team Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+FastAPI + React system that turns short policy specs into symbolic constraints, generates adversarial prompts (tagged with semantic `request_frame` metadata), and can compare symbolic coverage against a Claude baseline.
 
-Currently, two official plugins are available:
+## Repository layout
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- `backend/` – FastAPI service (parsing, symbolic compilation, prompt generator, experiment runner).
+- `src/` – Vite/React UI (policy console, rule visualizer, prompt schedule, experiment metrics).
+- `public/`, `vite.config.ts`, etc. – standard Vite build plumbing.
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Python 3.10+
+- Node.js 18+ and npm (or pnpm)
+- Optional: `ANTHROPIC_API_KEY` if you want `/run-experiment` to call Claude instead of heuristic fallbacks
 
-## Expanding the ESLint configuration
+## Quick start
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. **Backend**
+   ```bash
+   cd backend
+   python -m venv .venv
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload
+   ```
+   The API listens on `http://127.0.0.1:8000` by default. Useful endpoints:
+   - `POST /parse-policy`
+   - `POST /generate-prompts?total_prompts=10`
+   - `POST /run-experiment?total_prompts=10`
+   - `GET /playground` – barebones HTML surface for poking endpoints without the React UI.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+2. **Frontend**
+   ```bash
+   npm install
+   echo "VITE_BACKEND_URL=http://127.0.0.1:8000" > .env.local  # optional; defaults to 127.0.0.1:8000
+   npm run dev
+   ```
+   Visit `http://localhost:5173`, paste a policy snippet on the left, then:
+   - **Parse Rules** → view structured + symbolic rules (with `request_frame` options per clause).
+   - **Generate Prompts** → deterministic adversarial prompts grouped by semantic frame.
+   - **Run Experiment** → compares symbolic coverage against Claude (needs `ANTHROPIC_API_KEY`).
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Environment variables
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| Scope         | Variable            | Purpose                                                       |
+|---------------|---------------------|---------------------------------------------------------------|
+| Frontend      | `VITE_BACKEND_URL`  | API base URL for the React app (defaults to `http://127.0.0.1:8000`). |
+| Backend       | `ANTHROPIC_API_KEY` | Enables live Claude prompt sampling + judging.               |
+| Backend       | `ANTHROPIC_MODEL`   | Optional Claude model override (`claude-3-haiku-20240307` default). |
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Additional docs
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-## Spec-to-Eval Backend
-
-This repo also ships with a FastAPI backend that parses policy specs, generates symbolic adversarial prompts, and benchmarks coverage.
-
-- `backend/app/main.py` – FastAPI entry point and endpoints.
-- `backend/app/policy_parser.py` – layered parser for natural-language policies.
-- `backend/app/prompt_generator.py` – symbolic prompt templates with semantic `request_frame` metadata (direct request, harm-reduction cover, academic analysis, third-person narrative, hypothetical planning).
-- `backend/app/experiment.py` – compares symbolic prompts against a Claude baseline (requires `ANTHROPIC_API_KEY`).
-- `backend/README.md` – setup/run instructions.
+- Backend specifics, curl snippets, and evaluator details live in [`backend/README.md`](backend/README.md).
+- The FastAPI playground (`/playground`) remains available if you need a minimal UI for manual testing.

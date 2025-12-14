@@ -7,7 +7,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
     return (
-        <div className="relative min-h-screen bg-background text-foreground font-sans selection:bg-cyan-500/20 selection:text-cyan-400 overflow-hidden">
+        <div className="relative min-h-screen bg-background text-foreground font-sans selection:bg-cyan-500/20 selection:text-cyan-400 overflow-x-hidden">
             {/* Ambient Background Effects */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.15]" />
@@ -17,7 +17,7 @@ export function Layout({ children }: LayoutProps) {
 
             <Header />
             
-            <main className="relative z-10 pt-24 px-6 pb-12 w-full max-w-[1800px] mx-auto min-h-[calc(100vh-80px)] flex flex-col">
+            <main className="relative z-10 pt-24 px-6 pb-16 w-full max-w-[1800px] mx-auto flex flex-col gap-8 min-h-screen">
                 {children}
             </main>
         </div>
