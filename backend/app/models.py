@@ -77,6 +77,8 @@ class ExperimentMetrics(BaseModel):
     regions_covered: int
     traceable: bool
     coverage_percent: float  # judge-facing coverage metric
+    attack_success_rate: float
+    composite_score: float
 
 
 class ExperimentResponse(BaseModel):
