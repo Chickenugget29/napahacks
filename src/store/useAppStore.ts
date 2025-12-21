@@ -26,19 +26,20 @@ export interface PromptPayload {
 }
 
 export interface ExperimentMetrics {
-    num_prompts: number;
+    prompts_generated: number;
     rules_covered: number;
-    predicate_combinations: number;
+    regions_covered: number;
     traceable: boolean;
     coverage_percent: number;
-    specification_sensitivity: number;
-    coverage_variance: number;
-    spec_gap: number;
+    attack_success_rate: number;
+    composite_score: number;
 }
 
 export interface ExperimentResponse {
     agent_only: ExperimentMetrics;
     symbolic_guided: ExperimentMetrics;
+    comparison_table: string;
+    takeaway: string;
 }
 
 interface AppState {

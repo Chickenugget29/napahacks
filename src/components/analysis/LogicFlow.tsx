@@ -10,20 +10,20 @@ import {
 } from '../../constants/requestFrames';
 
 type NumericMetricKey =
-    | 'num_prompts'
+    | 'prompts_generated'
     | 'rules_covered'
-    | 'predicate_combinations'
+    | 'regions_covered'
     | 'coverage_percent'
-    | 'specification_sensitivity'
-    | 'spec_gap';
+    | 'attack_success_rate'
+    | 'composite_score';
 
 const METRIC_FIELDS: Array<{ key: NumericMetricKey; label: string; suffix?: string; precision?: number }> = [
-    { key: 'num_prompts', label: 'Prompts' },
+    { key: 'prompts_generated', label: 'Prompts' },
     { key: 'rules_covered', label: 'Rules Hit' },
-    { key: 'predicate_combinations', label: 'Predicate Regions' },
+    { key: 'regions_covered', label: 'Regions Covered' },
     { key: 'coverage_percent', label: 'Coverage', suffix: '%', precision: 1 },
-    { key: 'spec_gap', label: 'Spec Gap' },
-    { key: 'specification_sensitivity', label: 'Sensitivity', suffix: '%', precision: 1 },
+    { key: 'attack_success_rate', label: 'Attack Success Rate', suffix: '%', precision: 1 },
+    { key: 'composite_score', label: 'Coverage × Effectiveness', suffix: '%', precision: 1 },
 ];
 
 export function LogicFlow() {

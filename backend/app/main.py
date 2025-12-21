@@ -4,9 +4,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
+from .completion_evaluator import CompletionEvaluator
 from .evaluator import Evaluator
 from .experiment import ExperimentRunner
 from .models import (
+    CompletionEvalRequest,
+    CompletionEvalResponse,
     EvaluationRequest,
     EvaluationResponse,
     ExperimentResponse,
@@ -305,6 +308,24 @@ def evaluate_endpoint(request: EvaluationRequest) -> EvaluationResponse:
     evaluator = Evaluator(target_model=request.target_model)
     results = evaluator.evaluate(prompts, rules)
     return EvaluationResponse(prompts=prompts, results=results)
+
+
+@app.post("/evaluate-completions", response_model=CompletionEvalResponse)
+def evaluate_completions_endpoint(
+    request: CompletionEvalRequest, total_prompts: int = 10
+) -> CompletionEvalResponse:
+    rules, symbolic_rules = policy_parser.parse_with_symbolic(request.policy_text)
+    if not rules:
+        raise HTTPException(status_code=400, detail="No policy rules could be parsed.")
+
+    prompts = request.prompts or prompt_generator.generate(
+        rules, symbolic_rules, total_prompts=total_prompts
+    )
+    evaluator = CompletionEvaluator(
+        target_model=request.target_model, judge_model=request.judge_model
+    )
+    judgments = evaluator.evaluate(prompts)
+    return CompletionEvalResponse(prompts=prompts, judgments=judgments)
 
 
 @app.get("/playground", response_class=HTMLResponse)

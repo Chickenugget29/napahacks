@@ -71,6 +71,26 @@ class EvaluationResponse(BaseModel):
     results: List[EvalResult]
 
 
+class CompletionEvalRequest(BaseModel):
+    policy_text: str = Field(..., min_length=1)
+    prompts: Optional[List[AdversarialPrompt]] = None
+    target_model: Optional[str] = None
+    judge_model: Optional[str] = None
+
+
+class CompletionJudgment(BaseModel):
+    prompt_id: str
+    prompt_text: str
+    response_text: str
+    label: str
+    rationale: str
+
+
+class CompletionEvalResponse(BaseModel):
+    prompts: List[AdversarialPrompt]
+    judgments: List[CompletionJudgment]
+
+
 class ExperimentMetrics(BaseModel):
     prompts_generated: int
     rules_covered: int
