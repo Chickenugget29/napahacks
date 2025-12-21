@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import List
+from typing import List, Sequence
 
 from .models import PolicyRule
 from .symbolic import SymbolicRule, compile_to_symbolic
+from .semantic_parser import SemanticParser, SemanticParseResult
 
 
 STOPWORDS = {
@@ -60,6 +61,9 @@ CATEGORY_KEYWORDS = {
 class PolicyParser:
     """Convert natural language policies into structured rule objects."""
 
+    def __init__(self) -> None:
+        self.semantic_parser = SemanticParser()
+
     def parse(self, policy_text: str) -> List[PolicyRule]:
         return self._build_policy_rules(policy_text)
 
@@ -72,13 +76,15 @@ class PolicyParser:
 
     def _build_policy_rules(self, policy_text: str) -> List[PolicyRule]:
         raw_rules = self._extract_candidate_rules(policy_text)
+        semantic_enrichment = self.semantic_parser.parse_sentences(raw_rules)
         rules: List[PolicyRule] = []
         for idx, sentence in enumerate(raw_rules):
             normalized = sentence.strip()
             if not normalized:
                 continue
-            category = self._infer_category(normalized)
-            keywords = self._extract_keywords(normalized)
+            semantic = semantic_enrichment[idx]
+            category = self._infer_category(normalized, semantic)
+            keywords = self._extract_keywords(normalized, semantic)
             rules.append(
                 PolicyRule(
                     id=f"rule-{idx+1}-{uuid.uuid4().hex[:6]}",
@@ -119,18 +125,20 @@ class PolicyParser:
             rules.append(" ".join(buffer))
         return rules
 
-    def _infer_category(self, text: str) -> str:
+    def _infer_category(self, text: str, semantic: SemanticParseResult | None = None) -> str:
         lower_text = text.lower()
         for category, keywords in CATEGORY_KEYWORDS.items():
             if any(keyword in lower_text for keyword in keywords):
                 return category
+        if semantic and semantic.polarity == "negative":
+            return "prohibited"
         if "must not" in lower_text or "prohibit" in lower_text:
             return "prohibited"
         if "allowed" in lower_text or "permitted" in lower_text:
             return "allowed"
         return "general"
 
-    def _extract_keywords(self, text: str) -> List[str]:
+    def _extract_keywords(self, text: str, semantic: SemanticParseResult | None = None) -> List[str]:
         tokens = re.findall(r"[a-zA-Z][a-zA-Z\-']+", text.lower())
         keywords = []
         for token in tokens:
@@ -138,7 +146,19 @@ class PolicyParser:
                 continue
             if token not in keywords:
                 keywords.append(token)
-        return keywords[:6]
+
+        semantic_terms: List[str] = []
+        if semantic:
+            semantic_terms.extend(semantic.entities)
+            semantic_terms.extend(semantic.intents)
+        combined = keywords + [term.lower() for term in semantic_terms if term]
+        deduped: List[str] = []
+        for token in combined:
+            normalized = token.strip()
+            if not normalized or normalized in deduped:
+                continue
+            deduped.append(normalized)
+        return deduped[:8]
 
 
 def parse_policy(policy_text: str) -> List[PolicyRule]:

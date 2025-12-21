@@ -19,6 +19,14 @@ uvicorn app.main:app --reload
 
 Optional: export `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) to enable the `/run-experiment` Claude baseline. Without it, the experiment falls back to simple heuristics.
 
+> **Semantic parsing models (optional)**  
+> The policy parser can use AMR (`amrlib`) and AllenNLP SRL (`allennlp-models`) when those libraries (and a compatible PyTorch build) are installed. Because those wheels are large and platform-specific, they are *not* pinned in `requirements.txt`. To enable semantic parsing, install PyTorch plus the extras manually, e.g.:
+> ```bash
+> pip install torch==2.2.1 --extra-index-url https://download.pytorch.org/whl/cpu
+> pip install amrlib==0.8.0 allennlp==2.10.1 allennlp-models==2.10.1
+> ```
+> If the optional deps fail to load, the parser falls back to keyword heuristics.
+
 ## Endpoints
 
 - `POST /parse-policy` — body: `{ "policy_text": "..." }` → structured rules.

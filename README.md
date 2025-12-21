@@ -49,6 +49,10 @@ FastAPI + React system that turns short policy specs into symbolic constraints, 
 | Backend       | `ANTHROPIC_API_KEY` | Enables live Claude prompt sampling + judging.               |
 | Backend       | `ANTHROPIC_MODEL`   | Optional Claude model override (`claude-3-haiku-20240307` default). |
 
+> **Note:** The parser now uses AMR (amrlib) and AllenNLP semantic role labeling under the hood. The first run will download pretrained checkpoints; if either library is missing, the parser falls back to heuristic keyword extraction.
+>
+> Semantic parsing extras are optional. If you want richer parsing, install PyTorch plus `amrlib`, `allennlp`, and `allennlp-models` manually (see `backend/README.md` for commands). Without them, the parser falls back to heuristics.
+
 ## Additional docs
 
 - Backend specifics, curl snippets, and evaluator details live in [`backend/README.md`](backend/README.md).
